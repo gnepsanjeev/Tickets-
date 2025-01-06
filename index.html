@@ -1,0 +1,108 @@
+from flask import Flask, render_template_string, request, redirect, session
+
+app = Flask(__name__)
+app.secret_key = "your_secret_key"
+
+# Dummy user data
+users = {"admin": {"password": "admin123", "role": "admin"}}
+
+# Dummy ticket data
+tickets = []
+
+# HTML Templates
+templates = {
+    "login": """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - ISP Ticketing System</title>
+</head>
+<body>
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <button type="submit">Login</button>
+    </form>
+    <p>{{ error }}</p>
+</body>
+</html>
+    """,
+    "dashboard": """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - ISP Ticketing System</title>
+</head>
+<body>
+    <h1>Welcome {{ user }}</h1>
+    <a href="/logout">Logout</a>
+    <h2>Create a New Ticket</h2>
+    <form action="/create_ticket" method="POST">
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" required><br><br>
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" required></textarea><br><br>
+        <button type="submit">Create Ticket</button>
+    </form>
+    <h2>All Tickets</h2>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Status</th>
+        </tr>
+        {% for ticket in tickets %}
+        <tr>
+            <td>{{ ticket.id }}</td>
+            <td>{{ ticket.title }}</td>
+            <td>{{ ticket.description }}</td>
+            <td>{{ ticket.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
+    """
+}
+
+@app.route('/')
+def home():
+    if 'user' in session:
+        return render_template_string(templates["dashboard"], user=session['user'], tickets=tickets)
+    return redirect('/login')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in users and users[username]['password'] == password:
+            session['user'] = username
+            return redirect('/')
+        else:
+            error = "Invalid credentials. Please try again."
+    return render_template_string(templates["login"], error=error)
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect('/login')
+
+@app.route('/create_ticket', methods=['POST'])
+def create_ticket():
+    if 'user' not in session:
+        return redirect('/login')
+
+    ticket_id = len(tickets) + 1
+    title = request.form['title']
+    description = request.form['description']
+    tickets.append({"id": ticket_id, "title": title, "description": description, "status": "Open"})
+    return redirect('/')
+
+if __name__ == '__main__':
+    app.run(debug=True)
